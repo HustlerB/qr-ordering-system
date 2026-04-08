@@ -1,3 +1,6 @@
+export const dynamic = 'force-dynamic'
+export const revalidate = 0
+
 import OrderTrackingClient from '@/components/OrderTrackingClient'
 
 export default async function OrderTrackingPage({ params }) {
