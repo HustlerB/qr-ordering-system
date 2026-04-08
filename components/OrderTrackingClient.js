@@ -99,6 +99,13 @@ export default function OrderTrackingClient({ orderId }) {
 
   return (
     <main style={{ padding: '24px', fontFamily: 'Arial, sans-serif' }}>
+      <style>{`
+        @keyframes pickupBlink {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.2; }
+        }
+      `}</style>
+
       <h1 style={{ marginBottom: '16px' }}>Track Your Order</h1>
 
       <p><strong>Order Number:</strong> {order.order_number || `ORD-${String(order.id).padStart(5, '0')}`}</p>
@@ -113,45 +120,61 @@ export default function OrderTrackingClient({ orderId }) {
           {(order.order_items || []).map((item) => (
             <li key={item.id}>
               {item.item_name} × {item.qty}
+              {item.temperature ? ` • ${item.temperature}` : ''}
+              {item.milk_type ? ` • ${item.milk_type}` : ''}
             </li>
           ))}
         </ul>
       </div>
 
       {order.status === 'ready' ? (
-        <div
-          style={{
-            marginTop: '24px',
-            padding: '16px',
-            borderRadius: '12px',
-            background: '#d1fae5',
-            color: '#065f46',
-            fontWeight: 'bold',
-          }}
-        >
-          Your order is ready for pickup.
-        </div>
+        <>
+          <div
+            style={{
+              marginTop: '24px',
+              padding: '16px',
+              borderRadius: '12px',
+              background: '#d1fae5',
+              color: '#065f46',
+              fontWeight: 'bold',
+            }}
+          >
+            Your order is ready for pickup.
+          </div>
+
+          <div
+            style={{
+              marginTop: '16px',
+              fontWeight: 'bold',
+              fontSize: '22px',
+              color: '#facc15',
+              animation: 'pickupBlink 1s infinite',
+            }}
+          >
+            *Please pick up your drink*
+          </div>
+        </>
       ) : null}
 
-          <div style={{ marginTop: '20px' }}>
-            <button
-              onClick={requestNotificationPermission}
-              style={{
-                padding: '12px 16px',
-                borderRadius: '10px',
-                border: '1px solid #444',
-                background: '#ffffff',
-                color: '#111111',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '16px',
-                minHeight: '48px',
-                minWidth: '220px',
-              }}
-            >
-              {notificationEnabled ? 'Notifications Enabled' : 'Enable Notifications'}
-            </button>
-          </div>
+      <div style={{ marginTop: '20px' }}>
+        <button
+          onClick={requestNotificationPermission}
+          style={{
+            padding: '12px 16px',
+            borderRadius: '10px',
+            border: '1px solid #444',
+            background: '#ffffff',
+            color: '#111111',
+            cursor: 'pointer',
+            fontWeight: 'bold',
+            fontSize: '16px',
+            minHeight: '48px',
+            minWidth: '220px',
+          }}
+        >
+          {notificationEnabled ? 'Notifications Enabled' : 'Enable Notifications'}
+        </button>
+      </div>
 
       <p style={{ marginTop: '20px', color: '#666' }}>
         This page refreshes automatically every 5 seconds.
