@@ -30,6 +30,7 @@ export default function MenuClient({ menus, showPrices }) {
   const [selectedOptions, setSelectedOptions] = useState({})
   const [animatedCard, setAnimatedCard] = useState(null)
   const [fieldErrors, setFieldErrors] = useState({})
+  const [cartOpen, setCartOpen] = useState(false)
 
   function updateOption(itemId, key, value) {
     setSelectedOptions((prev) => ({
@@ -78,7 +79,7 @@ export default function MenuClient({ menus, showPrices }) {
     setAnimatedCard(itemId)
     setTimeout(() => {
       setAnimatedCard(null)
-    }, 450)
+    }, 350)
   }
 
   function getTotalCupCount() {
@@ -201,6 +202,7 @@ export default function MenuClient({ menus, showPrices }) {
       setCustomerName('')
       setSelectedOptions({})
       setFieldErrors({})
+      setCartOpen(false)
 
       router.push(`/order/${encodeURIComponent(result.orderId)}`)
     } catch (error) {
@@ -211,7 +213,15 @@ export default function MenuClient({ menus, showPrices }) {
   }
 
   return (
-    <main style={{ padding: '24px', fontFamily: 'Arial, sans-serif' }}>
+    <main
+      style={{
+        padding: '16px',
+        paddingBottom: cart.length > 0 ? '110px' : '24px',
+        fontFamily: 'Arial, sans-serif',
+        maxWidth: '520px',
+        margin: '0 auto',
+      }}
+    >
       <style>{`
         @keyframes popCard {
           0% { transform: scale(1); }
@@ -220,17 +230,17 @@ export default function MenuClient({ menus, showPrices }) {
         }
       `}</style>
 
-      <h1 style={{ marginBottom: '24px' }}>Drinks Menu</h1>
+      <h1 style={{ marginBottom: '12px', fontSize: '28px' }}>Drinks Menu</h1>
+
+      <p style={{ marginBottom: '16px', color: '#666' }}>
+        Maximum 5 cups per order
+      </p>
 
       {errorMessage ? (
         <p style={{ color: 'tomato', marginBottom: '16px' }}>{errorMessage}</p>
       ) : null}
 
-      <div style={{ marginBottom: '16px', fontWeight: 'bold' }}>
-        Maximum 5 cups per order
-      </div>
-
-      <div style={{ display: 'grid', gap: '20px', marginBottom: '32px' }}>
+      <div style={{ display: 'grid', gap: '16px' }}>
         {menus.map((item) => {
           const milkOptions = getAvailableMilkOptions(item)
           const needsMilk = requiresMilk(item.name)
@@ -243,12 +253,13 @@ export default function MenuClient({ menus, showPrices }) {
               key={item.id}
               style={{
                 border: '1px solid #ddd',
-                borderRadius: '16px',
-                padding: '16px',
+                borderRadius: '18px',
+                padding: '14px',
                 background: '#fff',
                 color: '#111',
-                opacity: isSoldOut ? 0.65 : 1,
-                animation: animatedCard === item.id ? 'popCard 0.45s ease' : 'none',
+                opacity: isSoldOut ? 0.6 : 1,
+                animation: animatedCard === item.id ? 'popCard 0.35s ease' : 'none',
+                boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
               }}
             >
               {item.image_url ? (
@@ -257,15 +268,16 @@ export default function MenuClient({ menus, showPrices }) {
                   alt={item.name}
                   style={{
                     width: '100%',
-                    maxWidth: '220px',
-                    borderRadius: '12px',
+                    aspectRatio: '1 / 1',
+                    objectFit: 'cover',
+                    borderRadius: '14px',
                     marginBottom: '12px',
                     display: 'block',
                   }}
                 />
               ) : null}
 
-              <h2 style={{ margin: '0 0 8px' }}>{item.name}</h2>
+              <h2 style={{ margin: '0 0 6px', fontSize: '22px' }}>{item.name}</h2>
               <p style={{ margin: '0 0 12px', color: '#666' }}>{item.description}</p>
 
               {showPrices ? (
@@ -282,7 +294,7 @@ export default function MenuClient({ menus, showPrices }) {
                     padding: '8px 12px',
                     background: '#fee2e2',
                     color: '#991b1b',
-                    borderRadius: '8px',
+                    borderRadius: '999px',
                     fontWeight: 'bold',
                   }}
                 >
@@ -301,12 +313,13 @@ export default function MenuClient({ menus, showPrices }) {
                       type="button"
                       onClick={() => updateOption(item.id, 'temperature', 'Hot')}
                       style={{
-                        padding: '10px 12px',
-                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        borderRadius: '999px',
                         border: '1px solid #ccc',
                         background: getSelectedTemperature(item) === 'Hot' ? '#111' : '#fff',
                         color: getSelectedTemperature(item) === 'Hot' ? '#fff' : '#111',
                         cursor: 'pointer',
+                        minHeight: '42px',
                       }}
                     >
                       Hot
@@ -318,12 +331,13 @@ export default function MenuClient({ menus, showPrices }) {
                       type="button"
                       onClick={() => updateOption(item.id, 'temperature', 'Cold')}
                       style={{
-                        padding: '10px 12px',
-                        borderRadius: '8px',
+                        padding: '10px 14px',
+                        borderRadius: '999px',
                         border: '1px solid #ccc',
                         background: getSelectedTemperature(item) === 'Cold' ? '#111' : '#fff',
                         color: getSelectedTemperature(item) === 'Cold' ? '#fff' : '#111',
                         cursor: 'pointer',
+                        minHeight: '42px',
                       }}
                     >
                       Cold
@@ -351,12 +365,13 @@ export default function MenuClient({ menus, showPrices }) {
                         type="button"
                         onClick={() => updateOption(item.id, 'milk_type', milk)}
                         style={{
-                          padding: '10px 12px',
-                          borderRadius: '8px',
+                          padding: '10px 14px',
+                          borderRadius: '999px',
                           border: '1px solid #ccc',
                           background: getSelectedMilk(item) === milk ? '#111' : '#fff',
                           color: getSelectedMilk(item) === milk ? '#fff' : '#111',
                           cursor: 'pointer',
+                          minHeight: '42px',
                         }}
                       >
                         {milk}
@@ -376,14 +391,16 @@ export default function MenuClient({ menus, showPrices }) {
                 onClick={() => addToCart(item)}
                 disabled={isSoldOut}
                 style={{
-                  padding: '12px 16px',
-                  borderRadius: '10px',
+                  width: '100%',
+                  padding: '14px 16px',
+                  borderRadius: '14px',
                   border: 'none',
                   cursor: isSoldOut ? 'not-allowed' : 'pointer',
                   fontWeight: 'bold',
+                  fontSize: '16px',
                   background: isSoldOut ? '#ddd' : selectedQty > 0 ? '#16a34a' : '#111',
                   color: isSoldOut ? '#666' : '#fff',
-                  transition: 'all 0.2s ease',
+                  minHeight: '48px',
                 }}
               >
                 {isSoldOut
@@ -397,113 +414,186 @@ export default function MenuClient({ menus, showPrices }) {
         })}
       </div>
 
-      <section
-        style={{
-          borderTop: '1px solid #333',
-          paddingTop: '24px',
-        }}
-      >
-        <h2>Cart</h2>
+      {cart.length > 0 ? (
+        <>
+          <button
+            onClick={() => setCartOpen(true)}
+            style={{
+              position: 'fixed',
+              left: '16px',
+              right: '16px',
+              bottom: '16px',
+              zIndex: 40,
+              border: 'none',
+              borderRadius: '18px',
+              background: '#111',
+              color: '#fff',
+              padding: '14px 16px',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              fontWeight: 'bold',
+              fontSize: '16px',
+              boxShadow: '0 12px 30px rgba(0,0,0,0.25)',
+            }}
+          >
+            <span>{totalItems} cup{totalItems > 1 ? 's' : ''} added</span>
+            <span>View Cart</span>
+          </button>
 
-        {cart.length === 0 ? (
-          <p>Your cart is empty.</p>
-        ) : (
-          <>
-            <div style={{ display: 'grid', gap: '12px', marginBottom: '16px' }}>
-              {cart.map((item) => (
+          {cartOpen ? (
+            <div
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0,0,0,0.45)',
+                zIndex: 50,
+                display: 'flex',
+                alignItems: 'flex-end',
+              }}
+              onClick={() => setCartOpen(false)}
+            >
+              <div
+                onClick={(e) => e.stopPropagation()}
+                style={{
+                  width: '100%',
+                  maxHeight: '82vh',
+                  overflowY: 'auto',
+                  background: '#fff',
+                  color: '#111',
+                  borderTopLeftRadius: '20px',
+                  borderTopRightRadius: '20px',
+                  padding: '18px 16px 24px',
+                }}
+              >
                 <div
-                  key={item.cartKey}
+                  style={{
+                    width: '48px',
+                    height: '5px',
+                    borderRadius: '999px',
+                    background: '#ddd',
+                    margin: '0 auto 16px',
+                  }}
+                />
+
+                <div
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    border: '1px solid #ddd',
-                    borderRadius: '10px',
-                    padding: '12px',
-                    background: '#fff',
-                    color: '#111',
+                    marginBottom: '16px',
                   }}
                 >
-                  <div>
-                    <div style={{ fontWeight: 'bold' }}>{item.name}</div>
-                    <div>{item.temperature}</div>
-                    {item.milk_type ? <div>{item.milk_type}</div> : null}
-                    {showPrices ? (
-                      <div>
-                        RM {Number(item.price).toFixed(2)} × {item.qty}
-                      </div>
-                    ) : (
-                      <div>Qty × {item.qty}</div>
-                    )}
-                  </div>
+                  <h2 style={{ margin: 0 }}>Your Cart</h2>
+                  <button
+                    onClick={() => setCartOpen(false)}
+                    style={{
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                    }}
+                  >
+                    Close
+                  </button>
+                </div>
 
-                  <div style={{ display: 'flex', gap: '8px' }}>
-                    <button onClick={() => removeFromCart(item.cartKey)}>-</button>
-                    <button
-                      onClick={() => {
-                        if (totalItems >= 5) {
-                          setErrorMessage('Maximum 5 cups allowed per order.')
-                          return
-                        }
-                        addToCart(item)
+                <div style={{ display: 'grid', gap: '12px', marginBottom: '16px' }}>
+                  {cart.map((item) => (
+                    <div
+                      key={item.cartKey}
+                      style={{
+                        border: '1px solid #ddd',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        background: '#fff',
                       }}
                     >
-                      +
-                    </button>
-                  </div>
+                      <div style={{ fontWeight: 'bold' }}>{item.name}</div>
+                      <div>{item.temperature}</div>
+                      {item.milk_type ? <div>{item.milk_type}</div> : null}
+                      {showPrices ? (
+                        <div style={{ marginTop: '6px' }}>
+                          RM {Number(item.price).toFixed(2)} × {item.qty}
+                        </div>
+                      ) : (
+                        <div style={{ marginTop: '6px' }}>Qty × {item.qty}</div>
+                      )}
+
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                        <button onClick={() => removeFromCart(item.cartKey)}>-</button>
+                        <button
+                          onClick={() => {
+                            if (totalItems >= 5) {
+                              setErrorMessage('Maximum 5 cups allowed per order.')
+                              return
+                            }
+                            addToCart(item)
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+
+                <div style={{ marginBottom: '16px' }}>
+                  <label
+                    htmlFor="customerName"
+                    style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}
+                  >
+                    Your Name
+                  </label>
+                  <input
+                    id="customerName"
+                    type="text"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Enter your name"
+                    style={{
+                      width: '100%',
+                      padding: '12px',
+                      borderRadius: '10px',
+                      border: '1px solid #ccc',
+                      fontSize: '16px',
+                    }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '16px' }}>
+                  <div>Total items: {totalItems}</div>
+                  {showPrices ? (
+                    <div style={{ fontWeight: 'bold', marginTop: '4px' }}>
+                      Total: RM {totalPrice.toFixed(2)}
+                    </div>
+                  ) : null}
+                </div>
+
+                <button
+                  onClick={placeOrder}
+                  disabled={submitting}
+                  style={{
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '14px',
+                    border: 'none',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '16px',
+                    background: '#111',
+                    color: '#fff',
+                    minHeight: '50px',
+                    opacity: submitting ? 0.7 : 1,
+                  }}
+                >
+                  {submitting ? 'Placing Order...' : 'Place Order'}
+                </button>
+              </div>
             </div>
-
-            <div style={{ marginBottom: '16px' }}>
-              <label
-                htmlFor="customerName"
-                style={{ display: 'block', marginBottom: '8px' }}
-              >
-                Your Name
-              </label>
-              <input
-                id="customerName"
-                type="text"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                placeholder="Enter your name"
-                style={{
-                  width: '100%',
-                  maxWidth: '320px',
-                  padding: '10px',
-                  borderRadius: '8px',
-                  border: '1px solid #ccc',
-                }}
-              />
-            </div>
-
-            <p>Total items: {totalItems}</p>
-
-            {showPrices ? (
-              <p style={{ fontWeight: 'bold' }}>
-                Total: RM {totalPrice.toFixed(2)}
-              </p>
-            ) : null}
-
-            <button
-              onClick={placeOrder}
-              disabled={submitting}
-              style={{
-                marginTop: '16px',
-                padding: '12px 18px',
-                borderRadius: '8px',
-                border: 'none',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                opacity: submitting ? 0.7 : 1,
-              }}
-            >
-              {submitting ? 'Placing Order...' : 'Place Order'}
-            </button>
-          </>
-        )}
-      </section>
+          ) : null}
+        </>
+      ) : null}
     </main>
   )
 }
