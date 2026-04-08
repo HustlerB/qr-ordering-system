@@ -133,20 +133,25 @@ export default function OrderTrackingClient({ orderId }) {
         </div>
       ) : null}
 
-      <div style={{ marginTop: '20px' }}>
-        <button
-          onClick={requestNotificationPermission}
-          style={{
-            padding: '10px 14px',
-            borderRadius: '8px',
-            border: 'none',
-            cursor: 'pointer',
-            fontWeight: 'bold',
-          }}
-        >
-          {notificationEnabled ? 'Notifications Enabled' : 'Enable Notifications'}
-        </button>
-      </div>
+          <div style={{ marginTop: '20px' }}>
+            <button
+              onClick={requestNotificationPermission}
+              style={{
+                padding: '12px 16px',
+                borderRadius: '10px',
+                border: '1px solid #444',
+                background: '#ffffff',
+                color: '#111111',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '16px',
+                minHeight: '48px',
+                minWidth: '220px',
+              }}
+            >
+              {notificationEnabled ? 'Notifications Enabled' : 'Enable Notifications'}
+            </button>
+          </div>
 
       <p style={{ marginTop: '20px', color: '#666' }}>
         This page refreshes automatically every 5 seconds.
