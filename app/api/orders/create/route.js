@@ -1,8 +1,15 @@
 import { NextResponse } from 'next/server'
 import { supabase } from '@/lib/supabase'
 
-function formatOrderNumber(id) {
-  return `ORD-${String(id).padStart(5, '0')}`
+function formatOrderNumber(prefix, nextNumber) {
+  const cleanPrefix = String(prefix || '').trim()
+  const cleanNumber = Number(nextNumber || 1)
+
+  if (!cleanPrefix) {
+    return String(cleanNumber)
+  }
+
+  return `${cleanPrefix}-${cleanNumber}`
 }
 
 function calculateEta(activeBacklogCount, batchSize = 10, batchMinutes = 5) {
@@ -49,38 +56,31 @@ export async function POST(request) {
       )
     }
 
-    const { data: latestOrder, error: latestOrderError } = await supabase
-      .from('orders')
-      .select('queue_number')
-      .order('queue_number', { ascending: false })
-      .limit(1)
-      .maybeSingle()
-
-    if (latestOrderError) {
-      return NextResponse.json(
-        { error: latestOrderError.message },
-        { status: 500 }
-      )
-    }
-
-    const nextQueueNumber = (latestOrder?.queue_number || 0) + 1
-
     const { data: settings, error: settingsError } = await supabase
       .from('settings')
-      .select('queue_batch_size, queue_batch_minutes, daily_cup_limit')
+      .select(`
+        id,
+        queue_batch_size,
+        queue_batch_minutes,
+        daily_cup_limit,
+        order_prefix,
+        order_start_number
+      `)
       .limit(1)
       .maybeSingle()
 
-    if (settingsError) {
+    if (settingsError || !settings) {
       return NextResponse.json(
-        { error: settingsError.message },
+        { error: settingsError?.message || 'Settings not found.' },
         { status: 500 }
       )
     }
 
-    const batchSize = settings?.queue_batch_size || 10
-    const batchMinutes = settings?.queue_batch_minutes || 5
-    const dailyCupLimit = settings?.daily_cup_limit || 100
+    const batchSize = settings.queue_batch_size || 10
+    const batchMinutes = settings.queue_batch_minutes || 5
+    const dailyCupLimit = settings.daily_cup_limit || 100
+    const orderPrefix = settings.order_prefix || 'ORD'
+    const nextOrderNumber = Number(settings.order_start_number || 1)
 
     const { start, end } = getKualaLumpurDayRange()
 
@@ -110,34 +110,46 @@ export async function POST(request) {
     if (cupsAlreadyOrderedToday + totalCups > dailyCupLimit) {
       return NextResponse.json(
         {
-          error: `Daily cup limit reached. Remaining cups: ${Math.max(dailyCupLimit - cupsAlreadyOrderedToday, 0)}.`,
+          error: `Daily cup limit reached. Remaining cups: ${Math.max(
+            dailyCupLimit - cupsAlreadyOrderedToday,
+            0
+          )}.`,
         },
         { status: 400 }
       )
     }
 
-    const { count: activeBacklogCount, error: backlogError } = await supabase
+    const { count: activeQueueCount, error: activeQueueError } = await supabase
       .from('orders')
       .select('*', { count: 'exact', head: true })
       .in('status', ['pending', 'brewing'])
 
-    if (backlogError) {
+    if (activeQueueError) {
       return NextResponse.json(
-        { error: backlogError.message },
+        { error: activeQueueError.message },
         { status: 500 }
       )
     }
 
-    const etaMinutes = calculateEta((activeBacklogCount || 0) + 1, batchSize, batchMinutes)
+    const nextQueueNumber = (activeQueueCount || 0) + 1
+
+    const etaMinutes = calculateEta(
+      (activeQueueCount || 0) + 1,
+      batchSize,
+      batchMinutes
+    )
 
     const totalAmount = cart.reduce(
       (sum, item) => sum + Number(item.price || 0) * item.qty,
       0
     )
 
+    const finalOrderNumber = formatOrderNumber(orderPrefix, nextOrderNumber)
+
     const { data: insertedOrder, error: orderInsertError } = await supabase
       .from('orders')
       .insert({
+        order_number: finalOrderNumber,
         queue_number: nextQueueNumber,
         customer_name: customerName,
         status: 'pending',
@@ -150,22 +162,6 @@ export async function POST(request) {
     if (orderInsertError) {
       return NextResponse.json(
         { error: orderInsertError.message },
-        { status: 500 }
-      )
-    }
-
-    const finalOrderNumber = formatOrderNumber(insertedOrder.id)
-
-    const { data: updatedOrder, error: updateOrderError } = await supabase
-      .from('orders')
-      .update({ order_number: finalOrderNumber })
-      .eq('id', insertedOrder.id)
-      .select()
-      .single()
-
-    if (updateOrderError) {
-      return NextResponse.json(
-        { error: updateOrderError.message },
         { status: 500 }
       )
     }
@@ -192,10 +188,24 @@ export async function POST(request) {
       )
     }
 
+    const { error: settingsUpdateError } = await supabase
+      .from('settings')
+      .update({
+        order_start_number: nextOrderNumber + 1,
+      })
+      .eq('id', settings.id)
+
+    if (settingsUpdateError) {
+      return NextResponse.json(
+        { error: settingsUpdateError.message },
+        { status: 500 }
+      )
+    }
+
     return NextResponse.json({
       success: true,
       orderId: insertedOrder.id,
-      orderNumber: updatedOrder.order_number,
+      orderNumber: insertedOrder.order_number,
       queueNumber: insertedOrder.queue_number,
       etaMinutes: insertedOrder.eta_minutes,
     })

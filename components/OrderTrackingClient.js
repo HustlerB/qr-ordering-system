@@ -11,7 +11,6 @@ function statusLabel(status) {
 
 async function sendReadyNotification(title, body) {
   if (typeof window === 'undefined' || !('Notification' in window)) return
-
   if (Notification.permission !== 'granted') return
 
   try {
@@ -74,7 +73,7 @@ export default function OrderTrackingClient({ orderId }) {
       if (previousStatus && previousStatus !== 'ready' && newOrder?.status === 'ready') {
         await sendReadyNotification(
           'Your order is ready',
-          `${newOrder.order_number || `ORD-${String(newOrder.id).padStart(5, '0')}`} is ready for pickup.`
+          `${newOrder.order_number || `ORD-${newOrder.id}`} is ready for pickup.`
         )
       }
 
@@ -134,11 +133,10 @@ export default function OrderTrackingClient({ orderId }) {
 
       <h1 style={{ marginBottom: '16px' }}>Track Your Order</h1>
 
-      <p><strong>Order Number:</strong> {order.order_number || `ORD-${String(order.id).padStart(5, '0')}`}</p>
+      <p><strong>Order Number:</strong> {order.order_number || `ORD-${order.id}`}</p>
       <p><strong>Queue Number:</strong> {order.queue_number}</p>
       <p><strong>Status:</strong> {statusLabel(order.status)}</p>
       <p><strong>Estimated Wait:</strong> {order.eta_minutes} minutes</p>
-      <p><strong>Total:</strong> RM {Number(order.total_amount || 0).toFixed(2)}</p>
 
       <div style={{ marginTop: '20px' }}>
         <strong>Items:</strong>

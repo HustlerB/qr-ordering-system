@@ -14,6 +14,14 @@ export async function POST(request) {
       updates.daily_cup_limit = Number(body.daily_cup_limit)
     }
 
+    if (body.order_prefix !== undefined) {
+      updates.order_prefix = String(body.order_prefix || 'ORD')
+    }
+
+    if (body.order_start_number !== undefined) {
+      updates.order_start_number = Number(body.order_start_number)
+    }
+
     const { error } = await supabase
       .from('settings')
       .update(updates)
