@@ -48,7 +48,7 @@ function Step({ label, active, completed }) {
       <div
         style={{
           fontWeight: active ? 'bold' : 'normal',
-          color: completed || active ? '#ffffff' : '#bdbdbd',
+          color: '#111',
           whiteSpace: 'pre-line',
           lineHeight: 1.3,
         }}
@@ -63,23 +63,14 @@ export default function OrderTrackingClient({ orderId }) {
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
   const [errorMessage, setErrorMessage] = useState('')
-  const [notificationEnabled, setNotificationEnabled] = useState(false)
   const previousStatusRef = useRef(null)
 
   async function requestNotificationPermission() {
     if (typeof window === 'undefined' || !('Notification' in window)) return
 
     try {
-      if (Notification.permission === 'granted') {
-        setNotificationEnabled(true)
-        return
-      }
-
-      if (Notification.permission !== 'denied') {
-        const permission = await Notification.requestPermission()
-        if (permission === 'granted') {
-          setNotificationEnabled(true)
-        }
+      if (Notification.permission === 'default') {
+        await Notification.requestPermission()
       }
     } catch (error) {
       console.error('Permission error:', error)
@@ -320,26 +311,6 @@ export default function OrderTrackingClient({ orderId }) {
             *Please pick up your drink*
           </div>
         ) : null}
-
-        <div style={{ marginTop: '20px' }}>
-          <button
-            onClick={requestNotificationPermission}
-            style={{
-              padding: '12px 16px',
-              borderRadius: '10px',
-              border: '1px solid #444',
-              background: '#ffffff',
-              color: '#111111',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '16px',
-              minHeight: '48px',
-              minWidth: '220px',
-            }}
-          >
-            {notificationEnabled ? 'Notifications Enabled' : 'Enable Notifications'}
-          </button>
-        </div>
 
         <p style={{ marginTop: '20px', color: '#666' }}>
           This page refreshes automatically every 5 seconds.

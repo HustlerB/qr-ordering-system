@@ -3,11 +3,24 @@
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-function requiresMilk(drinkName) {
-  return !['Americano', 'Espresso'].includes(drinkName)
+function getTemperatureOptions(itemName) {
+  if (
+    itemName === 'Piccolo Latte' ||
+    itemName === 'Espresso' ||
+    itemName === 'Flat White' ||
+    itemName === 'Cappuccino'
+  ) {
+    return []
+  }
+
+  return ['Hot', 'Cold']
 }
 
-function getAvailableMilkOptions(item) {
+function requiresMilk(itemName) {
+  return !['Americano', 'Espresso'].includes(itemName)
+}
+
+function getMilkOptions(item) {
   const options = []
 
   if (item.regular_milk_available) options.push('Regular')
@@ -17,27 +30,28 @@ function getAvailableMilkOptions(item) {
   return options
 }
 
-function getCartKey(item) {
-  return `${item.id}-${item.temperature || 'na'}-${item.milk_type || 'na'}`
+function getCartKey(itemId, temperature, milkType) {
+  return `${itemId}__${temperature || 'na'}__${milkType || 'na'}`
 }
 
-export default function MenuClient({ menus, showPrices }) {
+export default function MenuClient({ menus, showPrices = false }) {
   const router = useRouter()
+
   const [cart, setCart] = useState([])
   const [customerName, setCustomerName] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
+  const [isCartOpen, setIsCartOpen] = useState(false)
   const [selectedOptions, setSelectedOptions] = useState({})
-  const [animatedCard, setAnimatedCard] = useState(null)
   const [fieldErrors, setFieldErrors] = useState({})
-  const [cartOpen, setCartOpen] = useState(false)
+  const [addedCount, setAddedCount] = useState({})
 
-  function updateOption(itemId, key, value) {
+  function updateSelection(itemId, values) {
     setSelectedOptions((prev) => ({
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        [key]: value,
+        ...values,
       },
     }))
 
@@ -45,102 +59,98 @@ export default function MenuClient({ menus, showPrices }) {
       ...prev,
       [itemId]: {
         ...prev[itemId],
-        [key]: false,
+        ...Object.keys(values).reduce((acc, key) => {
+          acc[key] = ''
+          return acc
+        }, {}),
       },
     }))
   }
 
-  function getSelectedTemperature(item) {
-    return selectedOptions[item.id]?.temperature || ''
-  }
-
-  function getSelectedMilk(item) {
-    return selectedOptions[item.id]?.milk_type || ''
-  }
-
-  function getSelectedCartQuantity(item) {
-    const selectedTemperature = getSelectedTemperature(item)
-    const selectedMilk = requiresMilk(item.name) ? getSelectedMilk(item) : ''
-
-    if (!selectedTemperature) return 0
-    if (requiresMilk(item.name) && !selectedMilk) return 0
-
-    const cartKey = getCartKey({
-      ...item,
-      temperature: selectedTemperature,
-      milk_type: selectedMilk,
-    })
-
-    const existing = cart.find((entry) => entry.cartKey === cartKey)
-    return existing ? existing.qty : 0
-  }
-
-  function triggerCardAnimation(itemId) {
-    setAnimatedCard(itemId)
-    setTimeout(() => {
-      setAnimatedCard(null)
-    }, 350)
-  }
-
-  function getTotalCupCount() {
-    return cart.reduce((sum, item) => sum + item.qty, 0)
-  }
-
   function addToCart(item) {
-    if (item.sold_out) return
+    setErrorMessage('')
 
-    const selectedTemperature = getSelectedTemperature(item)
-    const selectedMilk = requiresMilk(item.name) ? getSelectedMilk(item) : ''
-
-    const nextErrors = {
-      temperature: !selectedTemperature,
-      milk_type: requiresMilk(item.name) && !selectedMilk,
-    }
-
-    setFieldErrors((prev) => ({
-      ...prev,
-      [item.id]: nextErrors,
-    }))
-
-    if (!selectedTemperature || (requiresMilk(item.name) && !selectedMilk)) {
+    const totalCups = cart.reduce((sum, cartItem) => sum + cartItem.qty, 0)
+    if (totalCups >= 5) {
+      setErrorMessage('Maximum 5 cups allowed per order.')
+      setIsCartOpen(true)
       return
     }
 
-    const totalCupCount = getTotalCupCount()
+    const selection = selectedOptions[item.id] || {}
+    const selectedTemperature = selection.temperature || ''
+    const selectedMilk = selection.milk || ''
 
-    if (totalCupCount >= 5) {
+    const temperatureOptions = getTemperatureOptions(item.name)
+    const milkOptions = getMilkOptions(item)
+    const needMilk = requiresMilk(item.name)
+
+    const nextErrors = {}
+
+    if (temperatureOptions.length > 0 && !selectedTemperature) {
+      nextErrors.temperature = 'Please select temperature'
+    }
+
+    if (needMilk && milkOptions.length > 0 && !selectedMilk) {
+      nextErrors.milk = 'Please select milk'
+    }
+
+    if (Object.keys(nextErrors).length > 0) {
+      setFieldErrors((prev) => ({
+        ...prev,
+        [item.id]: nextErrors,
+      }))
+      return
+    }
+
+    const cartKey = getCartKey(item.id, selectedTemperature, selectedMilk)
+
+    setCart((prev) => {
+      const existing = prev.find((cartItem) => cartItem.cartKey === cartKey)
+
+      if (existing) {
+        return prev.map((cartItem) =>
+          cartItem.cartKey === cartKey
+            ? { ...cartItem, qty: cartItem.qty + 1 }
+            : cartItem
+        )
+      }
+
+      return [
+        ...prev,
+        {
+          ...item,
+          cartKey,
+          qty: 1,
+          temperature: selectedTemperature || null,
+          milk_type: selectedMilk || null,
+        },
+      ]
+    })
+
+    setAddedCount((prev) => ({
+      ...prev,
+      [cartKey]: (prev[cartKey] || 0) + 1,
+    }))
+
+    setIsCartOpen(true)
+  }
+
+  function increaseQty(cartKey) {
+    const totalCups = cart.reduce((sum, item) => sum + item.qty, 0)
+    if (totalCups >= 5) {
       setErrorMessage('Maximum 5 cups allowed per order.')
       return
     }
 
-    setErrorMessage('')
-
-    const cartItem = {
-      ...item,
-      temperature: selectedTemperature,
-      milk_type: selectedMilk,
-    }
-
-    const cartKey = getCartKey(cartItem)
-
-    setCart((prev) => {
-      const existing = prev.find((entry) => entry.cartKey === cartKey)
-
-      if (existing) {
-        return prev.map((entry) =>
-          entry.cartKey === cartKey
-            ? { ...entry, qty: entry.qty + 1 }
-            : entry
-        )
-      }
-
-      return [...prev, { ...cartItem, qty: 1, cartKey }]
-    })
-
-    triggerCardAnimation(item.id)
+    setCart((prev) =>
+      prev.map((item) =>
+        item.cartKey === cartKey ? { ...item, qty: item.qty + 1 } : item
+      )
+    )
   }
 
-  function removeFromCart(cartKey) {
+  function decreaseQty(cartKey) {
     setCart((prev) => {
       const existing = prev.find((item) => item.cartKey === cartKey)
       if (!existing) return prev
@@ -161,7 +171,7 @@ export default function MenuClient({ menus, showPrices }) {
   )
 
   const totalPrice = useMemo(
-    () => cart.reduce((sum, item) => sum + Number(item.price) * item.qty, 0),
+    () => cart.reduce((sum, item) => sum + Number(item.price || 0) * item.qty, 0),
     [cart]
   )
 
@@ -173,8 +183,8 @@ export default function MenuClient({ menus, showPrices }) {
       return
     }
 
-    if (totalItems > 5) {
-      setErrorMessage('Maximum 5 cups allowed per order.')
+    if (!customerName.trim()) {
+      setErrorMessage('Please enter your name.')
       return
     }
 
@@ -201,8 +211,8 @@ export default function MenuClient({ menus, showPrices }) {
       setCart([])
       setCustomerName('')
       setSelectedOptions({})
-      setFieldErrors({})
-      setCartOpen(false)
+      setAddedCount({})
+      setIsCartOpen(false)
 
       router.push(`/order/${encodeURIComponent(result.orderId)}`)
     } catch (error) {
@@ -215,24 +225,14 @@ export default function MenuClient({ menus, showPrices }) {
   return (
     <main
       style={{
-        padding: '16px',
-        paddingBottom: cart.length > 0 ? '110px' : '24px',
+        padding: '20px 16px 110px',
         fontFamily: 'Arial, sans-serif',
-        maxWidth: '520px',
+        maxWidth: '560px',
         margin: '0 auto',
       }}
     >
-      <style>{`
-        @keyframes popCard {
-          0% { transform: scale(1); }
-          50% { transform: scale(1.02); }
-          100% { transform: scale(1); }
-        }
-      `}</style>
-
-      <h1 style={{ marginBottom: '12px', fontSize: '28px' }}>Drinks Menu</h1>
-
-      <p style={{ marginBottom: '16px', color: '#666' }}>
+      <h1 style={{ marginBottom: '8px', fontSize: '28px' }}>Drinks Menu</h1>
+      <p style={{ color: '#666', marginBottom: '20px' }}>
         Maximum 5 cups per order
       </p>
 
@@ -240,13 +240,17 @@ export default function MenuClient({ menus, showPrices }) {
         <p style={{ color: 'tomato', marginBottom: '16px' }}>{errorMessage}</p>
       ) : null}
 
-      <div style={{ display: 'grid', gap: '16px' }}>
+      <div style={{ display: 'grid', gap: '18px' }}>
         {menus.map((item) => {
-          const milkOptions = getAvailableMilkOptions(item)
-          const needsMilk = requiresMilk(item.name)
-          const isSoldOut = item.sold_out
-          const selectedQty = getSelectedCartQuantity(item)
-          const itemErrors = fieldErrors[item.id] || {}
+          const selection = selectedOptions[item.id] || {}
+          const selectedTemperature = selection.temperature || ''
+          const selectedMilk = selection.milk || ''
+          const temperatureOptions = getTemperatureOptions(item.name)
+          const milkOptions = getMilkOptions(item)
+          const needMilk = requiresMilk(item.name)
+          const fieldError = fieldErrors[item.id] || {}
+          const previewCartKey = getCartKey(item.id, selectedTemperature, selectedMilk)
+          const currentAdded = addedCount[previewCartKey] || 0
 
           return (
             <div
@@ -257,222 +261,214 @@ export default function MenuClient({ menus, showPrices }) {
                 padding: '14px',
                 background: '#fff',
                 color: '#111',
-                opacity: isSoldOut ? 0.6 : 1,
-                animation: animatedCard === item.id ? 'popCard 0.35s ease' : 'none',
-                boxShadow: '0 4px 14px rgba(0,0,0,0.06)',
+                opacity: item.sold_out ? 0.55 : 1,
               }}
             >
-              {item.image_url ? (
+              <div style={{ marginBottom: '12px' }}>
                 <img
-                  src={item.image_url}
+                  src={item.image_url || '/drinks/placeholder.jpeg'}
                   alt={item.name}
                   style={{
                     width: '100%',
                     aspectRatio: '1 / 1',
                     objectFit: 'cover',
                     borderRadius: '14px',
-                    marginBottom: '12px',
                     display: 'block',
                   }}
                 />
-              ) : null}
+              </div>
 
-              <h2 style={{ margin: '0 0 6px', fontSize: '22px' }}>{item.name}</h2>
-              <p style={{ margin: '0 0 12px', color: '#666' }}>{item.description}</p>
+              <div style={{ marginBottom: '8px' }}>
+                <h2 style={{ margin: '0 0 6px', fontSize: '24px' }}>{item.name}</h2>
+                {item.description ? (
+                  <p style={{ margin: 0, color: '#666' }}>{item.description}</p>
+                ) : null}
+              </div>
 
               {showPrices ? (
-                <p style={{ margin: '0 0 12px', fontWeight: 'bold' }}>
-                  RM {Number(item.price).toFixed(2)}
+                <p style={{ margin: '0 0 14px', fontWeight: 'bold' }}>
+                  RM {Number(item.price || 0).toFixed(2)}
                 </p>
               ) : null}
 
-              {isSoldOut ? (
+              {item.sold_out ? (
                 <div
                   style={{
-                    marginBottom: '14px',
                     display: 'inline-block',
-                    padding: '8px 12px',
+                    padding: '10px 14px',
+                    borderRadius: '999px',
                     background: '#fee2e2',
                     color: '#991b1b',
-                    borderRadius: '999px',
                     fontWeight: 'bold',
                   }}
                 >
                   SOLD OUT
                 </div>
-              ) : null}
+              ) : (
+                <>
+                  {temperatureOptions.length > 0 ? (
+                    <div style={{ marginBottom: '12px' }}>
+                      <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>
+                        Temperature <span style={{ color: 'red' }}>*</span>
+                      </div>
 
-              <div style={{ marginBottom: '14px' }}>
-                <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-                  Temperature <span style={{ color: 'tomato' }}>*</span>
-                </div>
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {temperatureOptions.map((temp) => {
+                          const isActive = selectedTemperature === temp
 
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  {item.hot_available ? (
-                    <button
-                      type="button"
-                      onClick={() => updateOption(item.id, 'temperature', 'Hot')}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: '999px',
-                        border: '1px solid #ccc',
-                        background: getSelectedTemperature(item) === 'Hot' ? '#111' : '#fff',
-                        color: getSelectedTemperature(item) === 'Hot' ? '#fff' : '#111',
-                        cursor: 'pointer',
-                        minHeight: '42px',
-                      }}
-                    >
-                      Hot
-                    </button>
+                          return (
+                            <button
+                              key={temp}
+                              type="button"
+                              onClick={() => updateSelection(item.id, { temperature: temp })}
+                              style={{
+                                padding: '10px 14px',
+                                borderRadius: '999px',
+                                border: isActive ? '2px solid #3cc3b2' : '1px solid #ccc',
+                                background: isActive ? '#e6fffb' : '#fff',
+                                color: '#111',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {temp}
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {fieldError.temperature ? (
+                        <p style={{ color: 'red', marginTop: '8px', fontSize: '14px' }}>
+                          {fieldError.temperature} - required
+                        </p>
+                      ) : null}
+                    </div>
                   ) : null}
 
-                  {item.cold_available ? (
-                    <button
-                      type="button"
-                      onClick={() => updateOption(item.id, 'temperature', 'Cold')}
-                      style={{
-                        padding: '10px 14px',
-                        borderRadius: '999px',
-                        border: '1px solid #ccc',
-                        background: getSelectedTemperature(item) === 'Cold' ? '#111' : '#fff',
-                        color: getSelectedTemperature(item) === 'Cold' ? '#fff' : '#111',
-                        cursor: 'pointer',
-                        minHeight: '42px',
-                      }}
-                    >
-                      Cold
-                    </button>
+                  {needMilk && milkOptions.length > 0 ? (
+                    <div style={{ marginBottom: '14px' }}>
+                      <div style={{ marginBottom: '8px', fontWeight: 'bold' }}>
+                        Milk <span style={{ color: 'red' }}>*</span>
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                        {milkOptions.map((milk) => {
+                          const isActive = selectedMilk === milk
+
+                          return (
+                            <button
+                              key={milk}
+                              type="button"
+                              onClick={() => updateSelection(item.id, { milk })}
+                              style={{
+                                padding: '10px 14px',
+                                borderRadius: '999px',
+                                border: isActive ? '2px solid #3cc3b2' : '1px solid #ccc',
+                                background: isActive ? '#e6fffb' : '#fff',
+                                color: '#111',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                              }}
+                            >
+                              {milk}
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {fieldError.milk ? (
+                        <p style={{ color: 'red', marginTop: '8px', fontSize: '14px' }}>
+                          {fieldError.milk} - required
+                        </p>
+                      ) : null}
+                    </div>
                   ) : null}
-                </div>
 
-                {itemErrors.temperature ? (
-                  <p style={{ color: 'tomato', marginTop: '8px', fontWeight: 'bold' }}>
-                    Please select temperature - required
-                  </p>
-                ) : null}
-              </div>
-
-              {needsMilk ? (
-                <div style={{ marginBottom: '14px' }}>
-                  <div style={{ fontWeight: 'bold', marginBottom: '8px' }}>
-                    Milk <span style={{ color: 'tomato' }}>*</span>
-                  </div>
-
-                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                    {milkOptions.map((milk) => (
-                      <button
-                        key={milk}
-                        type="button"
-                        onClick={() => updateOption(item.id, 'milk_type', milk)}
-                        style={{
-                          padding: '10px 14px',
-                          borderRadius: '999px',
-                          border: '1px solid #ccc',
-                          background: getSelectedMilk(item) === milk ? '#111' : '#fff',
-                          color: getSelectedMilk(item) === milk ? '#fff' : '#111',
-                          cursor: 'pointer',
-                          minHeight: '42px',
-                        }}
-                      >
-                        {milk}
-                      </button>
-                    ))}
-                  </div>
-
-                  {itemErrors.milk_type ? (
-                    <p style={{ color: 'tomato', marginTop: '8px', fontWeight: 'bold' }}>
-                      Please select milk - required
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
-
-              <button
-                onClick={() => addToCart(item)}
-                disabled={isSoldOut}
-                style={{
-                  width: '100%',
-                  padding: '14px 16px',
-                  borderRadius: '14px',
-                  border: 'none',
-                  cursor: isSoldOut ? 'not-allowed' : 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '16px',
-                  background: isSoldOut ? '#ddd' : selectedQty > 0 ? '#16a34a' : '#111',
-                  color: isSoldOut ? '#666' : '#fff',
-                  minHeight: '48px',
-                }}
-              >
-                {isSoldOut
-                  ? 'Unavailable'
-                  : selectedQty > 0
-                    ? `Added • ${selectedQty}`
-                    : 'Add to Cart'}
-              </button>
+                  <button
+                    type="button"
+                    onClick={() => addToCart(item)}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      border: 'none',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      fontSize: '16px',
+                      background: currentAdded > 0 ? '#3cc3b2' : '#111',
+                      color: '#fff',
+                      transition: 'all 0.2s ease',
+                      transform: currentAdded > 0 ? 'scale(1.02)' : 'scale(1)',
+                    }}
+                  >
+                    {currentAdded > 0 ? `Added - ${currentAdded}` : 'Add to Cart'}
+                  </button>
+                </>
+              )}
             </div>
           )
         })}
       </div>
 
-      {cart.length > 0 ? (
+      {totalItems > 0 ? (
         <>
           <button
-            onClick={() => setCartOpen(true)}
+            type="button"
+            onClick={() => setIsCartOpen(true)}
             style={{
               position: 'fixed',
               left: '16px',
               right: '16px',
               bottom: '16px',
-              zIndex: 40,
+              zIndex: 50,
+              padding: '16px',
+              borderRadius: '16px',
               border: 'none',
-              borderRadius: '18px',
               background: '#111',
               color: '#fff',
-              padding: '14px 16px',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
               fontWeight: 'bold',
               fontSize: '16px',
-              boxShadow: '0 12px 30px rgba(0,0,0,0.25)',
+              boxShadow: '0 12px 30px rgba(0,0,0,0.24)',
+              cursor: 'pointer',
             }}
           >
-            <span>{totalItems} cup{totalItems > 1 ? 's' : ''} added</span>
-            <span>View Cart</span>
+            {showPrices
+              ? `View Cart (${totalItems}) • RM ${totalPrice.toFixed(2)}`
+              : `View Cart (${totalItems})`}
           </button>
 
-          {cartOpen ? (
+          {isCartOpen ? (
             <div
               style={{
                 position: 'fixed',
                 inset: 0,
-                background: 'rgba(0,0,0,0.45)',
-                zIndex: 50,
+                background: 'rgba(0,0,0,0.35)',
+                zIndex: 60,
                 display: 'flex',
                 alignItems: 'flex-end',
               }}
-              onClick={() => setCartOpen(false)}
+              onClick={() => setIsCartOpen(false)}
             >
               <div
-                onClick={(e) => e.stopPropagation()}
                 style={{
                   width: '100%',
-                  maxHeight: '82vh',
-                  overflowY: 'auto',
                   background: '#fff',
                   color: '#111',
-                  borderTopLeftRadius: '20px',
-                  borderTopRightRadius: '20px',
-                  padding: '18px 16px 24px',
+                  borderTopLeftRadius: '22px',
+                  borderTopRightRadius: '22px',
+                  padding: '16px',
+                  maxHeight: '80vh',
+                  overflowY: 'auto',
                 }}
+                onClick={(e) => e.stopPropagation()}
               >
                 <div
                   style={{
-                    width: '48px',
-                    height: '5px',
+                    width: '56px',
+                    height: '6px',
                     borderRadius: '999px',
                     background: '#ddd',
-                    margin: '0 auto 16px',
+                    margin: '0 auto 14px',
                   }}
                 />
 
@@ -481,17 +477,18 @@ export default function MenuClient({ menus, showPrices }) {
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: '16px',
+                    marginBottom: '14px',
                   }}
                 >
-                  <h2 style={{ margin: 0 }}>Your Cart</h2>
+                  <h2 style={{ margin: 0, fontSize: '22px' }}>Your Cart</h2>
                   <button
-                    onClick={() => setCartOpen(false)}
+                    type="button"
+                    onClick={() => setIsCartOpen(false)}
                     style={{
                       border: 'none',
                       background: 'transparent',
-                      cursor: 'pointer',
                       fontWeight: 'bold',
+                      cursor: 'pointer',
                     }}
                   >
                     Close
@@ -506,29 +503,42 @@ export default function MenuClient({ menus, showPrices }) {
                         border: '1px solid #ddd',
                         borderRadius: '12px',
                         padding: '12px',
-                        background: '#fff',
                       }}
                     >
-                      <div style={{ fontWeight: 'bold' }}>{item.name}</div>
-                      <div>{item.temperature}</div>
+                      <div style={{ fontWeight: 'bold', fontSize: '18px' }}>
+                        {item.name}
+                      </div>
+                      {item.temperature ? <div>{item.temperature}</div> : null}
                       {item.milk_type ? <div>{item.milk_type}</div> : null}
-                      {showPrices ? (
-                        <div style={{ marginTop: '6px' }}>
-                          RM {Number(item.price).toFixed(2)} × {item.qty}
-                        </div>
-                      ) : (
-                        <div style={{ marginTop: '6px' }}>Qty × {item.qty}</div>
-                      )}
+                      <div style={{ marginTop: '6px' }}>Qty × {item.qty}</div>
 
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
-                        <button onClick={() => removeFromCart(item.cartKey)}>-</button>
+                      <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
                         <button
-                          onClick={() => {
-                            if (totalItems >= 5) {
-                              setErrorMessage('Maximum 5 cups allowed per order.')
-                              return
-                            }
-                            addToCart(item)
+                          type="button"
+                          onClick={() => decreaseQty(item.cartKey)}
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '10px',
+                            border: '1px solid #ccc',
+                            background: '#fff',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                          }}
+                        >
+                          -
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => increaseQty(item.cartKey)}
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '10px',
+                            border: '1px solid #ccc',
+                            background: '#fff',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
                           }}
                         >
                           +
@@ -538,7 +548,7 @@ export default function MenuClient({ menus, showPrices }) {
                   ))}
                 </div>
 
-                <div style={{ marginBottom: '16px' }}>
+                <div style={{ marginBottom: '14px' }}>
                   <label
                     htmlFor="customerName"
                     style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}
@@ -556,35 +566,34 @@ export default function MenuClient({ menus, showPrices }) {
                       padding: '12px',
                       borderRadius: '10px',
                       border: '1px solid #ccc',
-                      fontSize: '16px',
                     }}
                   />
                 </div>
 
-                <div style={{ marginBottom: '16px' }}>
-                  <div>Total items: {totalItems}</div>
-                  {showPrices ? (
-                    <div style={{ fontWeight: 'bold', marginTop: '4px' }}>
-                      Total: RM {totalPrice.toFixed(2)}
-                    </div>
-                  ) : null}
-                </div>
+                <p>Total items: {totalItems}</p>
+
+                {showPrices ? (
+                  <p style={{ fontWeight: 'bold' }}>
+                    Total: RM {totalPrice.toFixed(2)}
+                  </p>
+                ) : null}
 
                 <button
+                  type="button"
                   onClick={placeOrder}
                   disabled={submitting}
                   style={{
                     width: '100%',
-                    padding: '14px 16px',
-                    borderRadius: '14px',
+                    marginTop: '12px',
+                    padding: '15px 18px',
+                    borderRadius: '12px',
                     border: 'none',
                     cursor: 'pointer',
                     fontWeight: 'bold',
                     fontSize: '16px',
+                    opacity: submitting ? 0.7 : 1,
                     background: '#111',
                     color: '#fff',
-                    minHeight: '50px',
-                    opacity: submitting ? 0.7 : 1,
                   }}
                 >
                   {submitting ? 'Placing Order...' : 'Place Order'}
