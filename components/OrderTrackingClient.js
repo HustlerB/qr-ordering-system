@@ -9,6 +9,29 @@ function statusLabel(status) {
   return status
 }
 
+async function sendReadyNotification(title, body) {
+  if (typeof window === 'undefined' || !('Notification' in window)) return
+
+  if (Notification.permission !== 'granted') return
+
+  try {
+    if ('serviceWorker' in navigator) {
+      const registration = await navigator.serviceWorker.getRegistration()
+
+      if (registration && typeof registration.showNotification === 'function') {
+        await registration.showNotification(title, { body })
+        return
+      }
+    }
+
+    if (typeof Notification === 'function') {
+      new Notification(title, { body })
+    }
+  } catch (error) {
+    console.error('Notification error:', error)
+  }
+}
+
 export default function OrderTrackingClient({ orderId }) {
   const [order, setOrder] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -19,14 +42,20 @@ export default function OrderTrackingClient({ orderId }) {
   async function requestNotificationPermission() {
     if (typeof window === 'undefined' || !('Notification' in window)) return
 
-    if (Notification.permission === 'granted') {
-      setNotificationEnabled(true)
-      return
-    }
+    try {
+      if (Notification.permission === 'granted') {
+        setNotificationEnabled(true)
+        return
+      }
 
-    if (Notification.permission !== 'denied') {
-      const permission = await Notification.requestPermission()
-      if (permission === 'granted') setNotificationEnabled(true)
+      if (Notification.permission !== 'denied') {
+        const permission = await Notification.requestPermission()
+        if (permission === 'granted') {
+          setNotificationEnabled(true)
+        }
+      }
+    } catch (error) {
+      console.error('Permission error:', error)
     }
   }
 
@@ -43,13 +72,10 @@ export default function OrderTrackingClient({ orderId }) {
       const previousStatus = previousStatusRef.current
 
       if (previousStatus && previousStatus !== 'ready' && newOrder?.status === 'ready') {
-        if (typeof window !== 'undefined' && 'Notification' in window) {
-          if (Notification.permission === 'granted') {
-            new Notification('Your order is ready', {
-              body: `${newOrder.order_number || `ORD-${String(newOrder.id).padStart(5, '0')}`} is ready for pickup.`,
-            })
-          }
-        }
+        await sendReadyNotification(
+          'Your order is ready',
+          `${newOrder.order_number || `ORD-${String(newOrder.id).padStart(5, '0')}`} is ready for pickup.`
+        )
       }
 
       previousStatusRef.current = newOrder?.status || null
