@@ -85,12 +85,13 @@ export default async function AdminOrdersPage() {
     )
   }
 
-  const settings = settingsError || !settingsRaw
-    ? fallbackSettings
-    : {
-        ...fallbackSettings,
-        ...settingsRaw,
-      }
+  const settings =
+    settingsError || !settingsRaw
+      ? fallbackSettings
+      : {
+          ...fallbackSettings,
+          ...settingsRaw,
+        }
 
   const { start, end } = getKualaLumpurDayRange()
 

@@ -111,6 +111,14 @@ export default function AdminOrdersClient({
     }
   }, [])
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.refresh()
+    }, 5000)
+
+    return () => clearInterval(interval)
+  }, [router])
+
   function toggleAnnouncement() {
     const nextValue = !announcementEnabled
     setAnnouncementEnabled(nextValue)
@@ -539,9 +547,7 @@ export default function AdminOrdersClient({
       </div>
 
       <details style={{ marginBottom: '24px' }}>
-        <summary
-          style={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '18px' }}
-        >
+        <summary style={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '18px' }}>
           Price Visibility
         </summary>
 
@@ -597,9 +603,7 @@ export default function AdminOrdersClient({
       </details>
 
       <details style={{ marginBottom: '32px' }}>
-        <summary
-          style={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '18px' }}
-        >
+        <summary style={{ cursor: 'pointer', fontWeight: 'bold', fontSize: '18px' }}>
           Menu Controls
         </summary>
 
@@ -615,13 +619,7 @@ export default function AdminOrdersClient({
                 color: '#111',
               }}
             >
-              <div
-                style={{
-                  marginBottom: '8px',
-                  fontWeight: 'bold',
-                  fontSize: '22px',
-                }}
-              >
+              <div style={{ marginBottom: '8px', fontWeight: 'bold', fontSize: '22px' }}>
                 {menu.name}{' '}
                 <span style={{ color: '#666', fontSize: '16px' }}>
                   ({menu.code})
@@ -630,21 +628,12 @@ export default function AdminOrdersClient({
 
               <div style={{ marginBottom: '12px' }}>
                 <strong>Status:</strong>{' '}
-                <span
-                  style={{ color: menu.sold_out ? '#991b1b' : '#166534' }}
-                >
+                <span style={{ color: menu.sold_out ? '#991b1b' : '#166534' }}>
                   {menu.sold_out ? 'SOLD OUT' : 'AVAILABLE'}
                 </span>
               </div>
 
-              <div
-                style={{
-                  display: 'flex',
-                  gap: '10px',
-                  flexWrap: 'wrap',
-                  marginBottom: '12px',
-                }}
-              >
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '12px' }}>
                 <button
                   onClick={() => updateMenu(menu.id, { sold_out: false })}
                   disabled={loadingId === `menu-${menu.id}`}
@@ -772,23 +761,11 @@ export default function AdminOrdersClient({
                     color: '#111',
                   }}
                 >
-                  <div
-                    style={{
-                      marginBottom: '10px',
-                      fontWeight: 'bold',
-                      fontSize: '28px',
-                    }}
-                  >
+                  <div style={{ marginBottom: '10px', fontWeight: 'bold', fontSize: '28px' }}>
                     {orderNumber}
                   </div>
 
-                  <div
-                    style={{
-                      marginBottom: '12px',
-                      fontWeight: 'bold',
-                      fontSize: '22px',
-                    }}
-                  >
+                  <div style={{ marginBottom: '12px', fontWeight: 'bold', fontSize: '22px' }}>
                     {order.customer_name || 'Guest'}
                   </div>
 
@@ -814,28 +791,21 @@ export default function AdminOrdersClient({
                     <strong>ETA:</strong> {order.eta_minutes} mins
                   </p>
                   <p style={{ margin: '4px 0' }}>
-                    <strong>Total:</strong> RM{' '}
-                    {Number(order.total_amount || 0).toFixed(2)}
+                    <strong>Total:</strong> RM {Number(order.total_amount || 0).toFixed(2)}
                   </p>
 
                   <div style={{ marginTop: '14px', marginBottom: '14px' }}>
-                    <strong style={{ display: 'block', marginBottom: '10px' }}>
-                      Items:
-                    </strong>
+                    <strong style={{ display: 'block', marginBottom: '10px' }}>Items:</strong>
                     <ul style={{ marginTop: '8px', paddingLeft: '20px' }}>
                       {(order.order_items || []).map((item) => {
                         const code = getDrinkCode(item.item_name)
 
                         return (
                           <li key={item.id} style={{ marginBottom: '8px' }}>
-                            <span
-                              style={{ fontWeight: 'bold', fontSize: '18px' }}
-                            >
+                            <span style={{ fontWeight: 'bold', fontSize: '18px' }}>
                               {code ? `${code} - ` : ''}
                             </span>
-                            <span style={{ fontWeight: 'bold' }}>
-                              {item.item_name}
-                            </span>
+                            <span style={{ fontWeight: 'bold' }}>{item.item_name}</span>
                             {` × ${item.qty}`}
                             {item.temperature ? ` • ${item.temperature}` : ''}
                             {item.milk_type ? ` • ${item.milk_type}` : ''}
@@ -926,9 +896,7 @@ export default function AdminOrdersClient({
                         <option value="ready">Ready</option>
                       </select>
 
-                      <div
-                        style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}
-                      >
+                      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                         <button
                           onClick={() => saveEditedOrder(order.id)}
                           disabled={loadingId === `edit-${order.id}`}
@@ -966,9 +934,7 @@ export default function AdminOrdersClient({
                   <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
                     {order.status === 'pending' ? (
                       <button
-                        onClick={() =>
-                          updateStatus(order.id, 'brewing', orderNumber)
-                        }
+                        onClick={() => updateStatus(order.id, 'brewing', orderNumber)}
                         disabled={loadingId === `order-${order.id}`}
                         style={{
                           padding: '12px 18px',
@@ -986,9 +952,7 @@ export default function AdminOrdersClient({
 
                     {order.status === 'brewing' ? (
                       <button
-                        onClick={() =>
-                          updateStatus(order.id, 'ready', orderNumber)
-                        }
+                        onClick={() => updateStatus(order.id, 'ready', orderNumber)}
                         disabled={loadingId === `order-${order.id}`}
                         style={{
                           padding: '12px 18px',
@@ -1011,9 +975,7 @@ export default function AdminOrdersClient({
                         padding: '12px 18px',
                         borderRadius: '10px',
                         border: 'none',
-                        cursor: announcementEnabled
-                          ? 'pointer'
-                          : 'not-allowed',
+                        cursor: announcementEnabled ? 'pointer' : 'not-allowed',
                         fontWeight: 'bold',
                         background: announcementEnabled ? '#7c3aed' : '#9ca3af',
                         color: '#fff',
@@ -1042,9 +1004,7 @@ export default function AdminOrdersClient({
 
                     <button
                       onClick={() => deleteOrder(order.id)}
-                      disabled={
-                        loadingId === `delete-${order.id}` || lockOrderActions
-                      }
+                      disabled={loadingId === `delete-${order.id}` || lockOrderActions}
                       style={{
                         padding: '12px 18px',
                         borderRadius: '10px',
@@ -1060,13 +1020,7 @@ export default function AdminOrdersClient({
                     </button>
 
                     {order.status === 'ready' ? (
-                      <span
-                        style={{
-                          fontWeight: 'bold',
-                          color: '#166534',
-                          fontSize: '18px',
-                        }}
-                      >
+                      <span style={{ fontWeight: 'bold', color: '#166534', fontSize: '18px' }}>
                         Ready for pickup
                       </span>
                     ) : null}
